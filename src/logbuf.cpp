@@ -60,7 +60,7 @@ void LogBuf::WriteLog(int length_, const LogHeader_t* header_, const Tlv_t data_
 int LogBuf::BeginWrite(int length_)
 {
     int writeIdx;
-    CS_ENTER();
+    CriticalSection::Enter();
     writeIdx = m_iWriteIdx;
     m_iWriteIdx += length_ + (2 * sizeof(uint16_t));
     if (m_iWriteIdx > m_uBufferSize) {
@@ -70,7 +70,7 @@ int LogBuf::BeginWrite(int length_)
         m_bDoNotify = true;
     }
     m_iCount++;
-    CS_EXIT();
+    CriticalSection::Exit();
 
     uint16_t sync = syncBegin;
     return Write(writeIdx, &sync, sizeof(sync));
@@ -99,7 +99,7 @@ void LogBuf::EndWrite(int idx_)
     uint16_t sync = syncEnd;
     idx_ = Write(idx_, &sync, sizeof(sync));
 
-    CS_ENTER();
+    CriticalSection::Enter();
     if (m_iCount > 0) {
         m_iCount--;
         if (!m_iCount) {
@@ -110,7 +110,7 @@ void LogBuf::EndWrite(int idx_)
             }
         }
     }
-    CS_EXIT();
+    CriticalSection::Exit();
 
     if (doNotify && m_pfNotificationHandler) {        
         m_pfNotificationHandler();
@@ -124,14 +124,14 @@ void LogBuf::FlushData()
     int iLastReadIdx;
     bool bPending;
 
-    CS_ENTER();
+    CriticalSection::Enter();
     bPending = m_bPending;
     m_bDoNotify = false;
     m_bPending = false;
     iReadIdx = m_iReadIdx;
     iLastReadIdx = m_iLastReadIdx;
     m_iLastReadIdx = m_iReadIdx;
-    CS_EXIT();
+    CriticalSection::Exit();
 
     if (!m_pfLogWriter && !bPending) {
         return;
