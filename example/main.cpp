@@ -109,7 +109,7 @@ namespace {
     {
         char tmp[4];
         for (size_t i = 0; i < length_; i++) {
-            MemUtil::DecimalToHex(data_[i], tmp);
+            MemUtil::DecimalToString(data_[i], tmp);
             DebugPrint((const char*)tmp);
             DebugPrint(" ");
         }

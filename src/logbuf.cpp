@@ -59,21 +59,23 @@ void LogBuf::WriteLog(int length_, const LogHeader_t* header_, const Tlv_t data_
 //---------------------------------------------------------------------------
 int LogBuf::BeginWrite(int length_)
 {
-    int writeIdx;
-    CriticalSection::Enter();
-    writeIdx = m_iWriteIdx;
-    m_iWriteIdx += length_ + (2 * sizeof(uint16_t));
-    if (m_iWriteIdx > m_uBufferSize) {
-        m_iWriteIdx -= m_uBufferSize;
-        m_bDoNotify = true;
-    } else if ((writeIdx < (m_uBufferSize / 2)) && (m_iWriteIdx >= (m_uBufferSize / 2))) {
-        m_bDoNotify = true;
-    }
-    m_iCount++;
-    CriticalSection::Exit();
+    auto iWriteIdx = int{};
 
-    uint16_t sync = syncBegin;
-    return Write(writeIdx, &sync, sizeof(sync));
+    {
+        const auto cg = CriticalGuard{};
+        iWriteIdx = m_iWriteIdx;
+        m_iWriteIdx += length_ + (2 * sizeof(uint16_t));
+        if (m_iWriteIdx > m_uBufferSize) {
+            m_iWriteIdx -= m_uBufferSize;
+            m_bDoNotify = true;
+        } else if ((iWriteIdx < (m_uBufferSize / 2)) && (m_iWriteIdx >= (m_uBufferSize / 2))) {
+            m_bDoNotify = true;
+        }
+        m_iCount++;
+    }
+
+    auto sync = uint16_t{syncBegin};
+    return Write(iWriteIdx, &sync, sizeof(sync));
 }
 
 //---------------------------------------------------------------------------
@@ -94,23 +96,23 @@ int LogBuf::Write(int idx_, const void* data, uint8_t length)
 //---------------------------------------------------------------------------
 void LogBuf::EndWrite(int idx_)
 {
-    bool doNotify = false;
-
-    uint16_t sync = syncEnd;
+    auto doNotify = false;
+    auto sync = syncEnd;
     idx_ = Write(idx_, &sync, sizeof(sync));
 
-    CriticalSection::Enter();
-    if (m_iCount > 0) {
-        m_iCount--;
-        if (!m_iCount) {
-            m_iReadIdx = m_iWriteIdx;
-            m_bPending = true;
-            if (m_bDoNotify) {
-                doNotify = true;
+    {
+        const auto cg = CriticalGuard{};
+        if (m_iCount > 0) {
+            m_iCount--;
+            if (!m_iCount) {
+                m_iReadIdx = m_iWriteIdx;
+                m_bPending = true;
+                if (m_bDoNotify) {
+                    doNotify = true;
+                }
             }
         }
     }
-    CriticalSection::Exit();
 
     if (doNotify && m_pfNotificationHandler) {        
         m_pfNotificationHandler();
@@ -120,18 +122,19 @@ void LogBuf::EndWrite(int idx_)
 //---------------------------------------------------------------------------
 void LogBuf::FlushData()
 {
-    int iReadIdx;
-    int iLastReadIdx;
-    bool bPending;
+    auto iReadIdx = int{};
+    auto iLastReadIdx = int{};
+    auto bPending = bool{};
 
-    CriticalSection::Enter();
-    bPending = m_bPending;
-    m_bDoNotify = false;
-    m_bPending = false;
-    iReadIdx = m_iReadIdx;
-    iLastReadIdx = m_iLastReadIdx;
-    m_iLastReadIdx = m_iReadIdx;
-    CriticalSection::Exit();
+    {
+        const auto cg = CriticalGuard{};
+        bPending = m_bPending;
+        m_bDoNotify = false;
+        m_bPending = false;
+        iReadIdx = m_iReadIdx;
+        iLastReadIdx = m_iLastReadIdx;
+        m_iLastReadIdx = m_iReadIdx;
+    }
 
     if (!m_pfLogWriter && !bPending) {
         return;
