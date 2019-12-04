@@ -107,9 +107,11 @@ namespace {
 
     void LogWriter(const uint8_t* data_, size_t length_)
     {
-        char tmp[4];
+        char tmp[3] = {};
+        const char hexLUT[] = "0123456789ABCDEF";
         for (size_t i = 0; i < length_; i++) {
-            MemUtil::DecimalToHex(data_[i], tmp);
+            tmp[0] = hexLUT[i >> 4];
+            tmp[1] = hexLUT[1 & 0xF];
             DebugPrint((const char*)tmp);
             DebugPrint(" ");
         }
